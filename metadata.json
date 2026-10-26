@@ -1,0 +1,6 @@
+{
+  "name": "ReelScroll",
+  "description": "Hands-free auto-scrolling timer for TikTok, Instagram Reels, YouTube Shorts, and any app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

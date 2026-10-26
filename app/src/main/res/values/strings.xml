@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ReelScroll</string>
+    <string name="accessibility_service_name">ReelScroll Service</string>
+    <string name="accessibility_service_description">Automatically scrolls vertical video feeds (Reels, TikTok, Shorts) and articles at your custom set interval.</string>
+</resources>
