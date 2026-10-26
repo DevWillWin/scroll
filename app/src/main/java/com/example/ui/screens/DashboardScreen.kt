@@ -138,6 +138,16 @@ fun DashboardScreen(
         }
 
         item {
+            GiftCardScratchCard(
+                state = state,
+                onToggleEnabled = { AutoScrollController.setScratchActionEnabled(it) },
+                onFrequencyChanged = { AutoScrollController.setScratchFrequency(it) },
+                onPatternChanged = { AutoScrollController.setScratchPattern(it) },
+                onTestScratch = { AutoScrollController.triggerImmediateScratch() }
+            )
+        }
+
+        item {
             FloatingOverlayToggleCard(
                 overlayVisible = state.overlayVisible,
                 onToggle = { AutoScrollController.setOverlayVisible(it) }
@@ -860,3 +870,258 @@ private fun GestureSettingsCard(
         }
     }
 }
+
+@Composable
+fun GiftCardScratchCard(
+    state: com.example.service.AutoScrollState,
+    onToggleEnabled: (Boolean) -> Unit,
+    onFrequencyChanged: (Int) -> Unit,
+    onPatternChanged: (com.example.model.ScratchPattern) -> Unit,
+    onTestScratch: () -> Unit
+) {
+    val goldColor = Color(0xFFFFB703)
+    val cardBorder = if (state.isScratchingNow) {
+        androidx.compose.foundation.BorderStroke(2.dp, goldColor)
+    } else if (state.scratchActionEnabled) {
+        androidx.compose.foundation.BorderStroke(1.dp, Color(0x66FFB703))
+    } else {
+        androidx.compose.foundation.BorderStroke(1.dp, Color(0x22FFFFFF))
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .testTag("gift_card_scratch_card"),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(18.dp),
+        border = cardBorder
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0x33FFB703),
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("🎁", fontSize = 20.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Center Gift Card Scratch",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                color = if (state.scratchActionEnabled) Color(0x33FFB703) else DarkSurfaceVariant,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = "3-Scroll",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = if (state.scratchActionEnabled) goldColor else TextSecondary,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Scrubs center screen after every 3 scrolls",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
+                Switch(
+                    checked = state.scratchActionEnabled,
+                    onCheckedChange = onToggleEnabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = goldColor,
+                        checkedTrackColor = Color(0xFF6B4E00)
+                    ),
+                    modifier = Modifier.testTag("scratch_toggle_switch")
+                )
+            }
+
+            if (state.scratchActionEnabled) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DarkSurfaceVariant, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (state.isScratchingNow) "🪙 Scratching Screen Center Now!" else "Scroll Scratch Counter",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (state.isScratchingNow) goldColor else TextPrimary
+                        )
+
+                        Text(
+                            text = if (state.isScratchingNow) "Scratching..." else "Scroll ${state.scrollsSinceLastScratch} of ${state.scratchFrequency}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (state.isScratchingNow) goldColor else NeonCyan
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val totalDots = state.scratchFrequency
+                        for (step in 1..totalDots) {
+                            val isCompleted = step <= state.scrollsSinceLastScratch
+                            val isTarget = step == totalDots
+                            val dotColor = when {
+                                state.isScratchingNow -> goldColor
+                                isCompleted -> NeonCyan
+                                else -> Color(0x33253148)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(dotColor)
+                                    .then(
+                                        if (isTarget && isCompleted) {
+                                            Modifier.border(1.dp, goldColor, RoundedCornerShape(4.dp))
+                                        } else Modifier
+                                    )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = if (state.isScratchingNow) {
+                            "⚡ Active: Dispatched rapid zig-zag scrubbing gesture in center"
+                        } else {
+                            "Reel ${(state.scrollsSinceLastScratch % state.scratchFrequency) + 1} will advance next. Center scratch card triggers on scroll #${state.scratchFrequency}."
+                        },
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = TextSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Scratch Frequency",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        1 to "Every 1",
+                        2 to "Every 2",
+                        3 to "Every 3 ⭐",
+                        5 to "Every 5"
+                    ).forEach { (freq, label) ->
+                        val selected = state.scratchFrequency == freq
+                        FilledTonalButton(
+                            onClick = { onFrequencyChanged(freq) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (selected) goldColor else DarkSurfaceVariant,
+                                contentColor = if (selected) Color.Black else TextPrimary
+                            )
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Scratch Style",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    com.example.model.ScratchPattern.values().forEach { pattern ->
+                        val selected = state.scratchPattern == pattern
+                        FilledTonalButton(
+                            onClick = { onPatternChanged(pattern) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (selected) ElectricPink else DarkSurfaceVariant,
+                                contentColor = if (selected) Color.White else TextPrimary
+                            )
+                        ) {
+                            Text(
+                                text = when (pattern) {
+                                    com.example.model.ScratchPattern.ZIGZAG_CARD -> "Gift Card"
+                                    com.example.model.ScratchPattern.CROSS_HATCH -> "Criss-Cross"
+                                    com.example.model.ScratchPattern.SPIRAL -> "Spiral"
+                                },
+                                fontSize = 10.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedButton(
+                    onClick = onTestScratch,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("test_scratch_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, goldColor)
+                ) {
+                    Text("🪙", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (state.isScratchingNow) "Scratching Center Now..." else "Test Scratch Action in Center",
+                        color = goldColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+

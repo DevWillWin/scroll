@@ -2,6 +2,7 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.model.ScratchPattern
 import com.example.model.ScrollPreset
 import com.example.model.SwipeDirection
 import com.example.model.SwipeDistance
@@ -22,6 +23,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_FLOATING_OVERLAY = "floating_overlay_enabled"
         private const val KEY_TOTAL_SCROLLS = "total_scrolls_count"
         private const val KEY_PAUSE_ON_TOUCH = "pause_on_touch"
+        private const val KEY_SCRATCH_ENABLED = "scratch_action_enabled"
+        private const val KEY_SCRATCH_FREQUENCY = "scratch_frequency"
+        private const val KEY_SCRATCH_PATTERN = "scratch_pattern"
     }
 
     var selectedPreset: ScrollPreset
@@ -87,6 +91,25 @@ class PreferencesManager(context: Context) {
     var pauseOnTouch: Boolean
         get() = prefs.getBoolean(KEY_PAUSE_ON_TOUCH, true)
         set(value) = prefs.edit().putBoolean(KEY_PAUSE_ON_TOUCH, value).apply()
+
+    var scratchActionEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SCRATCH_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_SCRATCH_ENABLED, value).apply()
+
+    var scratchFrequency: Int
+        get() = prefs.getInt(KEY_SCRATCH_FREQUENCY, 3)
+        set(value) = prefs.edit().putInt(KEY_SCRATCH_FREQUENCY, value.coerceIn(1, 20)).apply()
+
+    var scratchPattern: ScratchPattern
+        get() {
+            val name = prefs.getString(KEY_SCRATCH_PATTERN, ScratchPattern.ZIGZAG_CARD.name)
+            return try {
+                ScratchPattern.valueOf(name ?: ScratchPattern.ZIGZAG_CARD.name)
+            } catch (e: Exception) {
+                ScratchPattern.ZIGZAG_CARD
+            }
+        }
+        set(value) = prefs.edit().putString(KEY_SCRATCH_PATTERN, value.name).apply()
 
     var totalScrollsCount: Int
         get() = prefs.getInt(KEY_TOTAL_SCROLLS, 0)

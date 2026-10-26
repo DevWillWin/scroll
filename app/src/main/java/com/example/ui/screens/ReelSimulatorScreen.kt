@@ -280,6 +280,12 @@ private fun ReelFeedSimulator(state: com.example.service.AutoScrollState) {
             })
         }
 
+        // Center Gift Card Scratching Action Overlay (triggers after every 3 scrolls or on demand)
+        CenterScratchCardOverlay(
+            isScratching = state.isScratchingNow,
+            modifier = Modifier.align(Alignment.Center)
+        )
+
         // Floating Simulator Overlay Header & Timer
         SimulatorOverlayBar(
             state = state,
@@ -684,3 +690,126 @@ private fun ArticleReaderSimulator(state: com.example.service.AutoScrollState) {
         )
     }
 }
+
+@Composable
+fun CenterScratchCardOverlay(
+    isScratching: Boolean,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = isScratching,
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.8f),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 1.1f),
+        modifier = modifier
+    ) {
+        val transition = rememberInfiniteTransition(label = "scrub_anim")
+        val scrubOffsetX by transition.animateFloat(
+            initialValue = -55f,
+            targetValue = 55f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(120, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scrub_x"
+        )
+        val scrubOffsetY by transition.animateFloat(
+            initialValue = -15f,
+            targetValue = 15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(180, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scrub_y"
+        )
+
+        Card(
+            modifier = Modifier
+                .width(260.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .border(2.dp, Color(0xFFFFB703), RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(containerColor = Color(0xF2101524)),
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🪙", fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "3-SCROLL SCRATCH!",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        ),
+                        color = Color(0xFFFFB703)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Simulated Scratch Foil Area
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(Color(0xFF6C757D), Color(0xFFADB5BD), Color(0xFF495057), Color(0xFFCED4DA))
+                            )
+                        )
+                        .border(1.dp, Color(0x66FFFFFF), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Revealed Prize under foil
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "🎉 BONUS UNLOCKED! ✨",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp
+                            ),
+                            color = Color(0xFF1E1B4B)
+                        )
+                        Text(
+                            text = "Gift Card Scratched",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                            color = Color(0xFF2E0854)
+                        )
+                    }
+
+                    // Vigorous scratching coin overlay moving back and forth
+                    Box(
+                        modifier = Modifier
+                            .offset(x = scrubOffsetX.dp, y = scrubOffsetY.dp)
+                            .size(36.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color(0xFFFFD166), Color(0xFFF77F00))
+                                ),
+                                shape = CircleShape
+                            )
+                            .border(2.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("✨", fontSize = 16.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Center screen scratch gesture active",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    color = Color(0xFFFFD166)
+                )
+            }
+        }
+    }
+}
+

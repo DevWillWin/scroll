@@ -70,6 +70,12 @@ enum class SwipeDistance(val label: String, val fraction: Float) {
     SHORT("Short Peek (35%)", 0.35f)
 }
 
+enum class ScratchPattern(val label: String, val description: String) {
+    ZIGZAG_CARD("Gift Card Scrub", "Fast zig-zag scratch strokes across screen center"),
+    CROSS_HATCH("Cross-Hatch Scratch", "Rapid multi-directional criss-cross scratch"),
+    SPIRAL("Spiral Scratch", "Concentric circular swirl scratch")
+}
+
 data class AppTarget(
     val id: String,
     val name: String,

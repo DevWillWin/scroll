@@ -8,6 +8,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import com.example.data.PreferencesManager
+import com.example.model.ScratchPattern
 import com.example.model.ScrollPreset
 import com.example.model.SwipeDirection
 import com.example.model.SwipeDistance
@@ -40,6 +41,12 @@ data class AutoScrollState(
     val soundChime: Boolean = true,
     val overlayVisible: Boolean = true,
     val overlayMinimized: Boolean = false,
+    val scratchActionEnabled: Boolean = true,
+    val scratchFrequency: Int = 3,
+    val scratchPattern: ScratchPattern = ScratchPattern.ZIGZAG_CARD,
+    val scrollsSinceLastScratch: Int = 0,
+    val isScratchingNow: Boolean = false,
+    val totalScratchesPerformed: Int = 0,
     val statusMessage: String = "Ready"
 )
 
@@ -49,6 +56,7 @@ object AutoScrollController {
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var timerJob: Job? = null
+    private var scratchJob: Job? = null
     private var prefsManager: PreferencesManager? = null
     private var appContext: Context? = null
     private var toneGenerator: ToneGenerator? = null
@@ -78,6 +86,9 @@ object AutoScrollController {
                 hapticFeedback = prefs.hapticFeedbackEnabled,
                 soundChime = prefs.soundChimeEnabled,
                 overlayVisible = prefs.floatingOverlayEnabled,
+                scratchActionEnabled = prefs.scratchActionEnabled,
+                scratchFrequency = prefs.scratchFrequency,
+                scratchPattern = prefs.scratchPattern,
                 scrollCountLifetime = prefs.totalScrollsCount,
                 isServiceConnected = AutoScrollAccessibilityService.isServiceRunning()
             )
@@ -156,6 +167,22 @@ object AutoScrollController {
         }
     }
 
+    fun setScratchActionEnabled(enabled: Boolean) {
+        prefsManager?.scratchActionEnabled = enabled
+        _state.update { it.copy(scratchActionEnabled = enabled) }
+    }
+
+    fun setScratchFrequency(freq: Int) {
+        val clamped = freq.coerceIn(1, 20)
+        prefsManager?.scratchFrequency = clamped
+        _state.update { it.copy(scratchFrequency = clamped) }
+    }
+
+    fun setScratchPattern(pattern: ScratchPattern) {
+        prefsManager?.scratchPattern = pattern
+        _state.update { it.copy(scratchPattern = pattern) }
+    }
+
     fun toggleOverlayMinimized() {
         _state.update { it.copy(overlayMinimized = !it.overlayMinimized) }
         AutoScrollAccessibilityService.instance?.updateOverlayUI()
@@ -172,7 +199,6 @@ object AutoScrollController {
             )
         }
 
-        // Show floating overlay if accessibility service is active and overlay is enabled
         if (_state.value.overlayVisible) {
             AutoScrollAccessibilityService.instance?.showFloatingOverlay()
         }
@@ -221,11 +247,14 @@ object AutoScrollController {
     fun stopAutoScroll() {
         timerJob?.cancel()
         timerJob = null
+        scratchJob?.cancel()
+        scratchJob = null
         val totalSecs = _state.value.totalIntervalSeconds
         _state.update {
             it.copy(
                 isRunning = false,
                 isPaused = false,
+                isScratchingNow = false,
                 secondsRemaining = totalSecs,
                 statusMessage = "Stopped"
             )
@@ -236,7 +265,6 @@ object AutoScrollController {
     fun triggerImmediateScroll(directionOverride: SwipeDirection? = null) {
         val dir = directionOverride ?: _state.value.swipeDirection
         executeSwipe(dir)
-        // Reset timer countdown
         _state.update {
             it.copy(secondsRemaining = it.totalIntervalSeconds)
         }
@@ -244,7 +272,6 @@ object AutoScrollController {
     }
 
     fun triggerPreviousScroll() {
-        // Reverse of current direction
         val reverseDir = when (_state.value.swipeDirection) {
             SwipeDirection.UP -> SwipeDirection.DOWN
             SwipeDirection.DOWN -> SwipeDirection.UP
@@ -254,6 +281,29 @@ object AutoScrollController {
         executeSwipe(reverseDir)
     }
 
+    fun triggerImmediateScratch() {
+        val service = AutoScrollAccessibilityService.instance
+        scratchJob?.cancel()
+        scratchJob = scope.launch {
+            _state.update { it.copy(isScratchingNow = true, statusMessage = "Scratching gift card in center...") }
+            playScratchHaptic()
+            if (service != null && AutoScrollAccessibilityService.isServiceRunning()) {
+                service.performScratchGesture(
+                    pattern = _state.value.scratchPattern,
+                    durationMs = 750L
+                )
+            }
+            delay(850L)
+            _state.update {
+                it.copy(
+                    isScratchingNow = false,
+                    totalScratchesPerformed = it.totalScratchesPerformed + 1,
+                    statusMessage = "Ready"
+                )
+            }
+        }
+    }
+
     private fun startTimerLoop() {
         timerJob?.cancel()
         timerJob = scope.launch {
@@ -261,7 +311,6 @@ object AutoScrollController {
                 delay(1000L)
                 val currentRem = _state.value.secondsRemaining
                 if (currentRem <= 1) {
-                    // Trigger scroll!
                     executeSwipe(_state.value.swipeDirection)
                     val nextTotal = _state.value.totalIntervalSeconds
                     _state.update { it.copy(secondsRemaining = nextTotal) }
@@ -294,11 +343,44 @@ object AutoScrollController {
 
         prefsManager?.incrementScrollCount()
         val newLifetime = (prefsManager?.totalScrollsCount) ?: (currentState.scrollCountLifetime + 1)
+        val newSinceScratch = currentState.scrollsSinceLastScratch + 1
+        val shouldScratch = currentState.scratchActionEnabled && (newSinceScratch >= currentState.scratchFrequency)
+
         _state.update {
             it.copy(
                 scrollCountSession = it.scrollCountSession + 1,
-                scrollCountLifetime = newLifetime
+                scrollCountLifetime = newLifetime,
+                scrollsSinceLastScratch = if (shouldScratch) 0 else newSinceScratch
             )
+        }
+
+        if (shouldScratch) {
+            scratchJob?.cancel()
+            scratchJob = scope.launch {
+                // Wait briefly for the reel scroll animation to settle (500ms)
+                delay(550L)
+                _state.update {
+                    it.copy(
+                        isScratchingNow = true,
+                        totalScratchesPerformed = it.totalScratchesPerformed + 1,
+                        statusMessage = "Scratching gift card..."
+                    )
+                }
+                playScratchHaptic()
+                if (service != null && AutoScrollAccessibilityService.isServiceRunning()) {
+                    service.performScratchGesture(
+                        pattern = currentState.scratchPattern,
+                        durationMs = 750L
+                    )
+                }
+                delay(850L)
+                _state.update {
+                    it.copy(
+                        isScratchingNow = false,
+                        statusMessage = "Auto-scrolling every ${formatTime(currentState.totalIntervalSeconds)}"
+                    )
+                }
+            }
         }
     }
 
@@ -327,6 +409,26 @@ object AutoScrollController {
                     @Suppress("DEPRECATION")
                     vibrator?.vibrate(35L)
                 }
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    private fun playScratchHaptic() {
+        val ctx = appContext ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
+                // Fast scrubbing pulse train mimicking coin scratch friction
+                val timings = longArrayOf(0, 18, 25, 18, 25, 18, 25, 18, 25, 22)
+                val amplitudes = intArrayOf(0, 190, 0, 230, 0, 190, 0, 255, 0, 180)
+                vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             }
         } catch (e: Exception) {
             // ignore

@@ -208,29 +208,55 @@ fun GuideSettingsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    OutlinedButton(
-                        onClick = {
-                            if (state.isServiceConnected) {
-                                AutoScrollController.triggerImmediateScroll()
-                                Toast.makeText(context, "Test swipe dispatched!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Please enable Accessibility Service first", Toast.LENGTH_LONG).show()
-                                AutoScrollAccessibilityService.openAccessibilitySettings(context)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("test_gesture_sandbox_button"),
-                        shape = RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = NeonCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Perform Test Swipe Now", color = NeonCyan, fontWeight = FontWeight.Bold)
+                        OutlinedButton(
+                            onClick = {
+                                if (state.isServiceConnected) {
+                                    AutoScrollController.triggerImmediateScroll()
+                                    Toast.makeText(context, "Test swipe dispatched!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Please enable Accessibility Service first", Toast.LENGTH_LONG).show()
+                                    AutoScrollAccessibilityService.openAccessibilitySettings(context)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("test_gesture_sandbox_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Test Swipe", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                if (state.isServiceConnected) {
+                                    AutoScrollController.triggerImmediateScratch()
+                                    Toast.makeText(context, "Gift card scratch dispatched in center!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Please enable Accessibility Service first", Toast.LENGTH_LONG).show()
+                                    AutoScrollAccessibilityService.openAccessibilitySettings(context)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("test_scratch_sandbox_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB703))
+                        ) {
+                            Text("🪙", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Test Scratch", color = Color(0xFFFFB703), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
                 }
             }

@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import com.example.model.ScratchPattern
 import com.example.model.SwipeDirection
 
 class AutoScrollAccessibilityService : AccessibilityService() {
@@ -54,11 +55,11 @@ class AutoScrollAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Can optionally observe active package name for auto-pause or profile switching
+        // Accessibility events
     }
 
     override fun onInterrupt() {
-        // Accessibility service interrupted
+        // Interrupted
     }
 
     override fun onDestroy() {
@@ -132,6 +133,80 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         }, null)
     }
 
+    fun performScratchGesture(
+        pattern: ScratchPattern = ScratchPattern.ZIGZAG_CARD,
+        durationMs: Long = 750L,
+        onCompleted: (() -> Unit)? = null
+    ) {
+        val displayMetrics = resources.displayMetrics
+        val width = displayMetrics.widthPixels.toFloat()
+        val height = displayMetrics.heightPixels.toFloat()
+
+        val cx = width * 0.5f
+        val cy = height * 0.5f
+
+        val path = Path()
+
+        when (pattern) {
+            ScratchPattern.ZIGZAG_CARD -> {
+                // Realistic gift card scratching: back-and-forth rapid zig-zag scrubbing
+                val spanX = width * 0.25f
+                val spanY = height * 0.08f
+
+                path.moveTo(cx - spanX, cy - spanY)
+                path.lineTo(cx + spanX, cy - spanY * 0.7f)
+                path.lineTo(cx - spanX * 0.9f, cy - spanY * 0.35f)
+                path.lineTo(cx + spanX * 0.9f, cy)
+                path.lineTo(cx - spanX, cy + spanY * 0.35f)
+                path.lineTo(cx + spanX, cy + spanY * 0.7f)
+                path.lineTo(cx - spanX * 0.8f, cy + spanY)
+                // Reverse scrub
+                path.lineTo(cx + spanX * 0.7f, cy + spanY * 0.5f)
+                path.lineTo(cx - spanX * 0.6f, cy)
+                path.lineTo(cx + spanX * 0.6f, cy - spanY * 0.5f)
+                path.lineTo(cx, cy)
+            }
+            ScratchPattern.CROSS_HATCH -> {
+                val span = width * 0.20f
+                path.moveTo(cx - span, cy - span)
+                path.lineTo(cx + span, cy + span)
+                path.lineTo(cx + span, cy - span)
+                path.lineTo(cx - span, cy + span)
+                path.lineTo(cx, cy - span)
+                path.lineTo(cx, cy + span)
+                path.lineTo(cx - span, cy)
+                path.lineTo(cx + span, cy)
+                path.lineTo(cx, cy)
+            }
+            ScratchPattern.SPIRAL -> {
+                val rMax = width * 0.22f
+                path.moveTo(cx, cy)
+                val points = 16
+                for (i in 1..points) {
+                    val angle = i * (Math.PI * 3 / points)
+                    val r = (rMax * i) / points
+                    val px = (cx + r * Math.cos(angle)).toFloat()
+                    val py = (cy + r * Math.sin(angle)).toFloat()
+                    path.lineTo(px, py)
+                }
+            }
+        }
+
+        val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceAtLeast(300L))
+        val gesture = GestureDescription.Builder().addStroke(stroke).build()
+
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                super.onCompleted(gestureDescription)
+                onCompleted?.invoke()
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                super.onCancelled(gestureDescription)
+            }
+        }, null)
+    }
+
     fun showFloatingOverlay() {
         if (floatingOverlayView != null) {
             updateOverlayUI()
@@ -167,7 +242,6 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         try {
             wm.addView(view, params)
         } catch (e: Exception) {
-            // Error adding overlay
             floatingOverlayView = null
         }
     }
